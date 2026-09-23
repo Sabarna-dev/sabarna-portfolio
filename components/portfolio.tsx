@@ -3,6 +3,7 @@
 import { FormEvent, startTransition, useEffect, useState } from "react";
 import Image from "next/image";
 import { capabilities, now, profile, projects } from "@/lib/content";
+import MetalCube from "@/components/metal-cube";
 
 const ArrowUpRight = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -101,7 +102,10 @@ export function Portfolio() {
       <section id="top" className="hero" aria-labelledby="hero-title">
         <div className="hero-noise" />
         <p className="eyebrow hero-intro">Independent builder <span /> {profile.location}</p>
-        <h1 id="hero-title"><span>Software with</span><strong>intent.</strong></h1>
+        <div className="hero-title-wrap">
+          <h1 id="hero-title"><span>Software with</span><strong>intent.</strong></h1>
+          <div className="hero-cube"><MetalCube /></div>
+        </div>
         <div className="hero-bottom">
           <p>I am Sabarna, a developer shaping useful web products and playful experiments from first principles.</p>
           <a href="#work" className="round-link">Explore the work <ArrowUpRight /></a>

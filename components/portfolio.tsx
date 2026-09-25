@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, startTransition, useEffect, useState } from "react";
+import { FormEvent, KeyboardEvent, PointerEvent, startTransition, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { capabilities, now, profile, projects } from "@/lib/content";
 import MetalCube from "@/components/metal-cube";
@@ -47,6 +47,99 @@ function ProjectVisual({ kind }: { kind: string }) {
   </div>;
 }
 
+function ScrollMarker() {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [progress, setProgress] = useState(0);
+  const [breakers, setBreakers] = useState<{ id: string; label: string; progress: number }[]>([]);
+
+  useEffect(() => {
+    const sectionLabels = [
+      ["work", "WORK"],
+      ["about", "ABOUT"],
+      ["contact", "CONTACT"],
+    ] as const;
+    const updateProgress = () => {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      setProgress(scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0);
+    };
+    const updateBreakers = () => {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      setBreakers(sectionLabels.flatMap(([id, label]) => {
+        const section = document.getElementById(id);
+        if (!section || scrollableHeight <= 0) return [];
+        return [{ id, label, progress: Math.min(1, section.offsetTop / scrollableHeight) }];
+      }));
+    };
+    updateProgress();
+    updateBreakers();
+    window.addEventListener("scroll", updateProgress, { passive: true });
+    window.addEventListener("resize", updateBreakers);
+    return () => {
+      window.removeEventListener("scroll", updateProgress);
+      window.removeEventListener("resize", updateBreakers);
+    };
+  }, []);
+
+  const moveToPointer = (clientY: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const bounds = track.getBoundingClientRect();
+    const nextProgress = Math.min(1, Math.max(0, (clientY - bounds.top) / bounds.height));
+    window.scrollTo({ top: nextProgress * (document.documentElement.scrollHeight - window.innerHeight), behavior: "auto" });
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    moveToPointer(event.clientY);
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) moveToPointer(event.clientY);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const pageHeight = window.innerHeight;
+    const keySteps: Record<string, number> = { ArrowDown: pageHeight * 0.12, ArrowUp: -pageHeight * 0.12, PageDown: pageHeight * 0.85, PageUp: -pageHeight * 0.85 };
+    if (event.key === "Home") { event.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    else if (event.key === "End") { event.preventDefault(); window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" }); }
+    else if (event.key in keySteps) { event.preventDefault(); window.scrollBy({ top: keySteps[event.key], behavior: "smooth" }); }
+  };
+
+  return (
+    <div className="scroll-marker" ref={trackRef} onClick={(event) => moveToPointer(event.clientY)}>
+      {breakers.map((breaker) => (
+        <button
+          className="scroll-marker-breaker"
+          key={breaker.id}
+          style={{ top: `${breaker.progress * 100}%` }}
+          type="button"
+          aria-label={`Jump to ${breaker.label.toLowerCase()}`}
+          onClick={(event) => { event.stopPropagation(); document.getElementById(breaker.id)?.scrollIntoView({ behavior: "smooth" }); }}
+        >
+          <span>{breaker.label}</span>
+        </button>
+      ))}
+      <button
+        className="scroll-marker-thumb"
+        style={{ top: `${progress * 100}%` }}
+        type="button"
+        aria-label="Scroll page"
+        role="slider"
+        aria-orientation="vertical"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress * 100)}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={handleKeyDown}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+      >
+        <span>S</span>
+      </button>
+    </div>
+  );
+}
+
 export function Portfolio() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -88,6 +181,7 @@ export function Portfolio() {
   return (
     <>
       <a className="skip-link" href="#content">Skip to content</a>
+      <ScrollMarker />
       <header className="site-header">
         <a href="#top" className="brand brand-home" aria-label="Sabarna Das, home"><span className="profile-avatar"><Image src="/images/sabarna-portrait-v2.png" alt="" fill sizes="40px" /></span><span>Sabarna Das</span></a>
         <button className="menu-toggle" aria-expanded={menuOpen} aria-controls="navigation" onClick={() => setMenuOpen(!menuOpen)}>
